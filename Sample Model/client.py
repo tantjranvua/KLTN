@@ -3,6 +3,7 @@ import threading
 import os
 import tqdm
 import tensorflow as tf
+import time
 from util import *
 
 HEADER = 128
@@ -62,5 +63,27 @@ def get_config(worker_client:socket.socket):
     worker_client.send(mess_to_header(RECEIVE_SUCCESS))
     return config
 
+def training():
+    time.sleep(1000)
+
+def get_data(worker_client:socket.socket):
+    len_recv_bit = worker_client.recv(HEADER)
+    if not len(len_recv_bit):
+        raise Exception('[Fail], data not receive')
+    len_recv = len_recv_bit.decode(FORMAT).strip()
+    len_recv = int(len_recv)
+    bytes_read = bytearray()
+    readed = 0
+    while readed<len_recv:
+        packet = worker_client.recv(len_recv-readed)
+        bytes_read.extend(packet)
+        readed += len(packet)
+    data = pickle.loads(bytes_read)
+    worker_client.send(mess_to_header(RECEIVE_SUCCESS))
+    return data
 model = get_model(worker_client)
 config = get_config(worker_client)
+while True:
+    training()
+    get_data() -> update_model()
+    send_gradient()
