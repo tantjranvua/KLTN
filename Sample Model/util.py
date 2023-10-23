@@ -1,6 +1,7 @@
 import socket
 import threading
 import tqdm
+import time
 import pickle
 from threading import Event
 
@@ -9,7 +10,8 @@ BUFFER_SIZE = 4096
 FORMAT = 'utf-8'
 SEPARATOR = "<SEPARATOR>"
 RECEIVE_SUCCESS = "<RECEIVESUCCESS>"
-GET_DATA = "<GETDATA>"
+SEND_DATA = "<SENDDATA>"
+SEND_MODEL = "<SENDMODEL>"
 SEND_GRADIENT = "<SENDGRADIENT>"
 
 config = {}
@@ -73,10 +75,33 @@ def send_config(worker_client:socket.socket):
         # print('[Success], send data')
     else:
         print(mess)
+        
+def get_gradient(worker_client:socket.socket):
+    len_recv_bit = worker_client.recv(HEADER)
+    if not len(len_recv_bit):
+        raise Exception('[Fail], gradient not receive')
+    len_recv = len_recv_bit.decode(FORMAT).strip()
+    len_recv = int(len_recv)
+    bytes_read = bytearray()
+    readed = 0
+    while readed<len_recv:
+        packet = worker_client.recv(len_recv-readed)
+        bytes_read.extend(packet)
+        readed += len(packet)
+    gradient = pickle.loads(bytes_read)
+    worker_client.send(mess_to_header(RECEIVE_SUCCESS))
+    return gradient
+
+def optimized():
+    time.sleep(3)
 
 def handle_client(worker_client:socket.socket, addr:str):
+    #connect to worker server
+    master_client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    master_client.connect((addr[0],5678))
+    
     # get request
-    print(f'[ACTIVE CONNECTIONS] {threading.active_count()-1}')
+    print(f'[ACTIVE CONNECTIONS]')
     while True:
         try:
             request = receive_request_header(worker_client)
@@ -84,7 +109,7 @@ def handle_client(worker_client:socket.socket, addr:str):
             print(e)
             return
         
-        if request == GET_DATA:
+        if request == SEND_DATA:
             try:
                 print(request)
             except Exception as e:
@@ -94,6 +119,8 @@ def handle_client(worker_client:socket.socket, addr:str):
         if request == SEND_GRADIENT:
             try:
                 print(request)
+                print(get_gradient(worker_client))
+                optimized()
             except Exception as e:
                 print(e)
                 return

@@ -3,7 +3,6 @@ import threading
 import os
 import tqdm
 import tensorflow as tf
-import time
 import numpy as np
 from util import *
 
@@ -12,11 +11,14 @@ BUFFER_SIZE = 4096
 FORMAT = 'utf-8'
 SEPARATOR = "<SEPARATOR>"
 RECEIVE_SUCCESS = "<RECEIVESUCCESS>"
-GET_MODEL = "<GETMODEL>"
+SEND_DATA = "<SENDDATA>"
+SEND_MODEL = "<SENDMODEL>"
 SEND_GRADIENT = "<SENDGRADIENT>"
 
-MASTER_ADDR = ('172.16.7.241',5555)
-WORKER_ADDR = ('172.16.7.241',5678)
+# MASTER_ADDR = ('172.16.7.241',5555)
+# WORKER_ADDR = ('172.16.7.241',5678)
+MASTER_ADDR = ('192.168.1.103',5555)
+WORKER_ADDR = ('192.168.1.103',5678)
 model_cache = 0
 
 worker_server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -73,7 +75,7 @@ def get_config(worker_client:socket.socket):
 
 def training():
     print('Client Traing')
-    time.sleep(5) 
+    time.sleep(3) 
 
 def get_data(worker_client:socket.socket):
     len_recv_bit = worker_client.recv(HEADER)
@@ -93,12 +95,14 @@ def get_data(worker_client:socket.socket):
 
 def update_model(): 
     print('Client Updating')
-    time.sleep(5)
+    time.sleep(3)
 
 def send_gradient(worker_client:socket.socket, gradient):
+    print('Client send gradient')
     gradient_dumps = pickle.dumps(gradient)
     # progress = tqdm.tqdm(range(file_size), f"Sending  {file_name}",unit="B", unit_scale=True, unit_divisor=1024)
-    worker_client.send(create_mess_header(SEND_GRADIENT))
+    worker_client.send(mess_to_header(SEND_GRADIENT))
+    worker_client.send(create_mess_header(gradient_dumps))
     worker_client.sendall(gradient_dumps)
     mess = worker_client.recv(HEADER).decode(FORMAT).strip()
     if mess==RECEIVE_SUCCESS:
@@ -106,30 +110,29 @@ def send_gradient(worker_client:socket.socket, gradient):
     else:
         print(mess)
 
-# def handle_client(master_client:socket.socket, addr:str, model_cache):
-#     while True:
-#         try:
-#             request = receive_request_header(worker_client)
-#         except Exception as e:
-#             print(e)
-#             return
-#         if request == GET_MODEL:
-#             try:
-#                 model_cache = get_model()
-#                 pass
-#             except Exception as e:
-#                 print(e)
-#                 return
+def handle_client(master_client:socket.socket, addr:str, model_cache):
+    while True:
+        try:
+            request = receive_request_header(master_client)
+        except Exception as e:
+            print(e)
+            return
+        if request == send_model:
+            try:
+                model_cache = get_model(master_client)
+            except Exception as e:
+                print(e)
+                return
         
 
-# def server(worker_server:socket.socket,model_cache):
-#     while True:
-#         master_client, addr = worker_server.accept()
-#         thread = threading.Thread(target=handle_client, args=(master_client,addr,model_cache))
-#         thread.start()
+def server(worker_server:socket.socket,model_cache):
+    while True:
+        master_client, addr = worker_server.accept()
+        thread = threading.Thread(target=handle_client, args=(master_client,addr,model_cache))
+        thread.start()
         
-# server_thread = threading.Thread(target=server,args=(worker_server,model_cache))
-# server_thread.start()
+server_thread = threading.Thread(target=server,args=(worker_server,model_cache))
+server_thread.start()
 
 model = get_model(worker_client)
 config = get_config(worker_client)
