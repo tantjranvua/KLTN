@@ -9,6 +9,8 @@ BUFFER_SIZE = 4096
 FORMAT = 'utf-8'
 SEPARATOR = "<SEPARATOR>"
 RECEIVE_SUCCESS = "<RECEIVESUCCESS>"
+GET_DATA = "<GETDATA>"
+SEND_GRADIENT = "<SENDGRADIENT>"
 
 config = {}
 config['epochs'] = 10
@@ -79,6 +81,19 @@ def handle_client(worker_client:socket.socket, addr:str):
         try:
             request = receive_request_header(worker_client)
         except Exception as e:
-            # handle_exception(e,worker_client,patch_list,socket_dict)
+            print(e)
             return
         
+        if request == GET_DATA:
+            try:
+                print(request)
+            except Exception as e:
+                print(e)
+                return
+            
+        if request == SEND_GRADIENT:
+            try:
+                print(request)
+            except Exception as e:
+                print(e)
+                return
