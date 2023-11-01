@@ -17,8 +17,10 @@ SEND_GRADIENT = "<SENDGRADIENT>"
 
 # MASTER_ADDR = ('172.16.7.241',5555)
 # WORKER_ADDR = ('172.16.7.241',5678)
-MASTER_ADDR = ('192.168.1.103',5555)
-WORKER_ADDR = ('192.168.1.103',5678)
+# MASTER_ADDR = ('192.168.1.103',5555)
+# WORKER_ADDR = ('192.168.1.103',5678)
+MASTER_ADDR = ('10.5.9.165',5555)
+WORKER_ADDR = ('10.5.9.165',5678)
 model_cache = 0
 
 worker_server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -28,7 +30,7 @@ print('Connectingggggg')
 worker_client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 worker_client.connect(MASTER_ADDR)
 
-def get_model(worker_client:socket.socket):
+def get_model_init(worker_client:socket.socket):
     print('Get Model')
     file_header = worker_client.recv(HEADER).decode(FORMAT).strip()
     file_name, file_size = file_header.split(SEPARATOR)
@@ -55,6 +57,22 @@ def get_model(worker_client:socket.socket):
 
     # return model
     return 0
+
+def get_model(worker_client:socket.socket):
+    len_recv_bit = worker_client.recv(HEADER)
+    if not len(len_recv_bit):
+        raise Exception('[Fail], model not receive')
+    len_recv = len_recv_bit.decode(FORMAT).strip()
+    len_recv = int(len_recv)
+    bytes_read = bytearray()
+    readed = 0
+    while readed<len_recv:
+        packet = worker_client.recv(len_recv-readed)
+        bytes_read.extend(packet)
+        readed += len(packet)
+    model = pickle.loads(bytes_read)
+    worker_client.send(mess_to_header(RECEIVE_SUCCESS))
+    return model
 
 def get_config(worker_client:socket.socket):
     print('Get config')
@@ -110,16 +128,17 @@ def send_gradient(worker_client:socket.socket, gradient):
     else:
         print(mess)
 
-def handle_client(master_client:socket.socket, addr:str, model_cache):
+def worker_handle_client(master_client:socket.socket, addr:str, model_cache):
     while True:
         try:
             request = receive_request_header(master_client)
         except Exception as e:
             print(e)
             return
-        if request == send_model:
+        if request == SEND_MODEL:
             try:
                 model_cache = get_model(master_client)
+                print('[MODEL]', model_cache)
             except Exception as e:
                 print(e)
                 return
@@ -128,17 +147,24 @@ def handle_client(master_client:socket.socket, addr:str, model_cache):
 def server(worker_server:socket.socket,model_cache):
     while True:
         master_client, addr = worker_server.accept()
-        thread = threading.Thread(target=handle_client, args=(master_client,addr,model_cache))
+        thread = threading.Thread(target=worker_handle_client, args=(master_client,addr,model_cache),name='Worker_server')
         thread.start()
         
 server_thread = threading.Thread(target=server,args=(worker_server,model_cache))
 server_thread.start()
 
-model = get_model(worker_client)
+model = get_model_init(worker_client)
 config = get_config(worker_client)
-
+run = 0
 while True:
+    # Cập nhật model    <-                            getmodel
+    # Kiểm tra đã có data chưa  
+    # training data     ->          getdata
+    #     ->                        send gradient
+    
+    
     # model = model_cache
     training()
     # get_data() -> update_model()
-    send_gradient(worker_client=worker_client, gradient=np.arange(100))
+    send_gradient(worker_client=worker_client, gradient=run)
+    run+=1
