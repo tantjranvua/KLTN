@@ -2,7 +2,7 @@ import os
 from util import *
 
 IP_ADDR = get_ip_address()
-MASTER_ADDR = (IP_ADDR,5555)
+MASTER_ADDR = ('172.16.7.241',5555)
 MODELFILE = 'test.png'
 gra_queue = Queue()
 
