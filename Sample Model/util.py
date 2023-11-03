@@ -3,6 +3,7 @@ import threading
 import tqdm
 import time
 import pickle
+import netifaces
 from queue import Queue
 from threading import Event
 
@@ -22,7 +23,10 @@ config['steps_per_epoch'] = 1
 workers = []
 workers_lock = threading.Lock()
 
-
+def get_ip_address():
+    iface = netifaces.gateways()['default'][netifaces.AF_INET][1]
+    ip = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr']
+    return ip
 
 def create_mess_header(mess):
     return f"{len(mess):<{HEADER}}".encode(FORMAT)

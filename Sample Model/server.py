@@ -1,9 +1,8 @@
 import os
 from util import *
 
-# MASTER_ADDR = ('172.16.7.241',5555)
-# MASTER_ADDR = ('192.168.1.103',5555)
-MASTER_ADDR = ('10.5.9.165',5555)
+IP_ADDR = get_ip_address()
+MASTER_ADDR = (IP_ADDR,5555)
 MODELFILE = 'test.png'
 gra_queue = Queue()
 
