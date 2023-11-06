@@ -21,7 +21,9 @@ config['epochs'] = 10
 config['batch_size'] = 32
 config['steps_per_epoch'] = 1
 workers = []
-workers_lock = threading.Lock()
+workers_lock = threading.Lock() #lock synchrony worker list
+gra_lock = threading.Lock() #lock synchrony gradient queue
+gra_condition = threading.Condition() #condition call optimize after get gradient
 
 def get_ip_address():
     iface = netifaces.gateways()['default'][netifaces.AF_INET][1]
@@ -102,26 +104,34 @@ def get_gradient(worker_client:socket.socket):
 
 def optimize(gra_queue: Queue,tmp):
     global workers
-    while True:
-        if (gra_queue.empty() != True):
-            print('[OPTIMIZING]')
-            gradient = gra_queue.get()
-            print(gradient)
-            time.sleep(5)
-            model = gradient*-1
-            model_dumps = pickle.dumps(model)
-            workers_lock.acquire()
-            for worker in workers:
-                print('Server send model')
-                worker.send(mess_to_header(SEND_MODEL))
-                worker.send(create_mess_header(model_dumps))
-                worker.sendall(model_dumps)
-            mess = worker.recv(HEADER).decode(FORMAT).strip()
-            if mess==RECEIVE_SUCCESS:
-                print('[Success], send config')
-            else:
-                print(mess)
-            workers_lock.release()
+    with gra_condition: #luong doi cho den khi nhan duoc gradient va su ly den kkhi het gradient
+        while gra_queue.empty() == True:
+            gra_condition.wait()
+        print('[OPTIMIZING]')
+        # get gradient tu gradient queue
+        gra_lock.acquire()
+        gradient = gra_queue.get()
+        gra_lock.release()
+        
+        print(gradient)
+        time.sleep(5)
+        model = gradient*-1
+        model_dumps = pickle.dumps(model)
+        
+        #send model to all worker in worker list
+        workers_lock.acquire()
+        for worker in workers:
+            print('Server send model')
+            worker.send(mess_to_header(SEND_MODEL))
+            worker.send(create_mess_header(model_dumps))
+            worker.sendall(model_dumps)
+        mess = worker.recv(HEADER).decode(FORMAT).strip()
+        if mess==RECEIVE_SUCCESS:
+            print('[Success], send config')
+        else:
+            print(mess)
+        workers_lock.release()
+
     
 def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue):
     global workers
@@ -151,7 +161,12 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
             try:
                 print(request)
                 gradient = get_gradient(worker_client)
+                
+                #put gradient to gradient queue
+                gra_lock.acquire()
                 gra_queue.put(gradient)
+                gra_condition.notify()
+                gra_lock.release()
             except Exception as e:
                 print(e)
                 return
