@@ -90,7 +90,7 @@ def get_config(worker_client:socket.socket):
 
 def training():
     print('Client Traing')
-    time.sleep(3) 
+    time.sleep(1) 
 
 def get_data(worker_client:socket.socket):
     len_recv_bit = worker_client.recv(HEADER)
@@ -113,7 +113,7 @@ def update_model():
     time.sleep(3)
 
 def send_gradient(worker_client:socket.socket, gradient):
-    print('Client send gradient')
+    print('[SEND] Client send gradient')
     gradient_dumps = pickle.dumps(gradient)
     # progress = tqdm.tqdm(range(file_size), f"Sending  {file_name}",unit="B", unit_scale=True, unit_divisor=1024)
     worker_client.send(mess_to_header(SEND_GRADIENT))
@@ -135,7 +135,7 @@ def worker_handle_client(master_client:socket.socket, addr:str, model_cache):
         if request == SEND_MODEL:
             try:
                 model_cache = get_model(master_client)
-                print('[MODEL]', model_cache)
+                print('[GET]', model_cache)
             except Exception as e:
                 print(e)
                 return
