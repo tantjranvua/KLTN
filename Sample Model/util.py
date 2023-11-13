@@ -102,38 +102,10 @@ def get_gradient(worker_client:socket.socket):
 
 def optimize(gra_queue: Queue,tmp):
     global workers
-    while True:
-        while gra_queue.empty() != True:
-            print('[OPTIMIZING]', gra_queue.qsize())
-            
-            # get gradient tu gradient queue
-            gradient = gra_queue.get()
-            print(gradient)
-            time.sleep(5)
-            model = gradient*-1
-            model_dumps = pickle.dumps(model)
-            
-            #send model to all worker in worker list
-            workers_lock.acquire()
-            for worker in workers:
-                print('Server send model after sending', model)
-                worker.send(mess_to_header(SEND_MODEL))
-                worker.send(create_mess_header(model_dumps))
-                worker.sendall(model_dumps)
-            mess = worker.recv(HEADER).decode(FORMAT).strip()
-            if mess==RECEIVE_SUCCESS:
-                print('[Success], send model')
-            else:
-                print(mess)
-            workers_lock.release()
-     
     # while True:
-    #     print(1)
-    #     with gra_condition:
-    #         if gra_queue.empty() == True:
-    #             gra_condition.wait()
-    #             print('[OPTIMIZING]', gra_queue.qsize())
-                
+    #     while gra_queue.empty() != True:
+    #         print('[OPTIMIZING]', gra_queue.qsize())
+            
     #         # get gradient tu gradient queue
     #         gradient = gra_queue.get()
     #         print(gradient)
@@ -154,7 +126,33 @@ def optimize(gra_queue: Queue,tmp):
     #         else:
     #             print(mess)
     #         workers_lock.release()
-
+     
+    while True:
+        with gra_condition:
+            print('[OPTIMIZING]', gra_queue.qsize())
+            while gra_queue.empty() == True:
+                gra_condition.wait()
+                
+            # get gradient tu gradient queue
+            gradient = gra_queue.get()
+            print(gradient)
+            model = gradient*-1
+            model_dumps = pickle.dumps(model)
+            
+            #send model to all worker in worker list
+            workers_lock.acquire()
+            for worker in workers:
+                print('Server send model after sending', model)
+                worker.send(mess_to_header(SEND_MODEL))
+                worker.send(create_mess_header(model_dumps))
+                worker.sendall(model_dumps)
+            mess = worker.recv(HEADER).decode(FORMAT).strip()
+            if mess==RECEIVE_SUCCESS:
+                print('[Success], send model')
+            else:
+                print(mess)
+            workers_lock.release()
+    
     
 def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue):
     global workers
@@ -185,9 +183,9 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
             try:
                 print('[GET]', request)
                 gradient = get_gradient(worker_client)
-                gra_queue.put(gradient)
-                # with gra_condition:
-                #     gra_condition.notify()
+                with gra_condition:
+                    gra_queue.put(gradient)
+                    gra_condition.notify()
                 
             except Exception as e:
                 print(e)

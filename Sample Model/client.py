@@ -89,8 +89,8 @@ def get_config(worker_client:socket.socket):
     return config
 
 def training():
-    print('Client Traing')
-    time.sleep(1) 
+    print('Client Traing', model_cache)
+    # time.sleep(1) 
 
 def get_data(worker_client:socket.socket):
     len_recv_bit = worker_client.recv(HEADER)
