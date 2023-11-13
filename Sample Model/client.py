@@ -125,7 +125,8 @@ def send_gradient(worker_client:socket.socket, gradient):
     else:
         print(mess)
 
-def worker_handle_client(master_client:socket.socket, addr:str, model_cache):
+def worker_handle_client(master_client:socket.socket, addr:str):
+    global model_cache
     while True:
         try:
             request = receive_request_header(master_client)
@@ -144,7 +145,7 @@ def worker_handle_client(master_client:socket.socket, addr:str, model_cache):
 def server(worker_server:socket.socket,model_cache):
     while True:
         master_client, addr = worker_server.accept()
-        thread = threading.Thread(target=worker_handle_client, args=(master_client,addr,model_cache),name='Worker_server')
+        thread = threading.Thread(target=worker_handle_client, args=(master_client,addr),name='Worker_server')
         thread.start()
         
 server_thread = threading.Thread(target=server,args=(worker_server,model_cache))
