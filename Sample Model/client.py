@@ -16,8 +16,8 @@ SEND_MODEL = "<SENDMODEL>"
 SEND_GRADIENT = "<SENDGRADIENT>"
 
 IP_ADDR = get_ip_address()
-# MASTER_ADDR = ('172.16.7.241',5555)
-MASTER_ADDR = ('172.16.5.128',5555)
+MASTER_ADDR = ('172.16.5.246',5555)
+# MASTER_ADDR = ('172.16.5.128',5555)
 WORKER_ADDR = (IP_ADDR,5678)
 model_cache = 0
 
@@ -32,6 +32,7 @@ def get_model_init(worker_client:socket.socket):
     print('Get Model')
     file_header = worker_client.recv(HEADER).decode(FORMAT).strip()
     file_name, file_size = file_header.split(SEPARATOR)
+    print(file_name)
     file_name = 'test2.png'
     file_name = os.path.basename(file_name)
     file_size = int(file_size)
