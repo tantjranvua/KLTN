@@ -1,5 +1,6 @@
 import os
 import modelbuild
+import tensorflow as tf
 from util import *
 
 IP_ADDR = get_ip_address()
@@ -11,10 +12,18 @@ master_server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 master_server.bind(MASTER_ADDR)
 master_server.listen()
 
-model= modelbuild.buildmodel().compiled_model()
-model.save(MODELFILE)
+model= modelbuild.buildmodel()
+model.model.save(MODELFILE)
 save_file_event = Event()
 save_file_event.set()
+
+target_size = tuple(model.model.input_shape[1:3])
+img_gen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1/255)
+train_gen = img_gen.flow_from_directory('./data',target_size=(224, 224),class_mode="binary")
+
+print(train_gen)
+
+
 print('[SERVER] is running')
 optimize_thread = threading.Thread(target=optimize, args=(gra_queue,0))
 optimize_thread.start()

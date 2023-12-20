@@ -60,13 +60,7 @@ class buildmodel():
             outputs = keras.layers.Dense(num_outputs,activation = 'softmax',name = 'outputs_softmax')(x)
         model = keras.Model(inputs = inputs, outputs = outputs, name = 'resnet18')
         return model
-    def compiled_model(self,model_name = 'resnet18',num_outputs=1):
-        if model_name == 'resnet18':
-            model = self.resnet18(num_outputs = num_outputs)
-        if model_name == 'vgg16':
-            model = self.vgg16(num_outputs=num_outputs)
-        model.compile(optimizer=keras.optimizers.Adam(),loss=keras.losses.BinaryCrossentropy())
-        return model
+
     def __init__(self,model_name = 'resnet18',num_outputs=1):
         if model_name == 'resnet18':
             self.model = self.resnet18(num_outputs = num_outputs)
@@ -75,6 +69,7 @@ class buildmodel():
         self.opt = keras.optimizers.Adam()
         self.loss_fn = keras.losses.BinaryCrossentropy()
         self.metric = keras.metrics.BinaryAccuracy()
+        self.model.compile(optimizer=self.opt, loss= self.loss_fn)
     @tf.function
     def train_step(self,x, y):
         with tf.GradientTape() as tape:

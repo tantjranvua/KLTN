@@ -20,6 +20,8 @@ config = {}
 config['epochs'] = 10
 config['batch_size'] = 32
 config['steps_per_epoch'] = 1
+
+
 workers = []
 workers_lock = threading.Lock() #lock synchrony worker list
 gra_condition = threading.Condition() #condition call optimize after get gradient
@@ -84,6 +86,8 @@ def send_config(worker_client:socket.socket):
     else:
         print(mess)
         
+def send_data(worker_client: socket.socket):
+        pass
 def get_gradient(worker_client:socket.socket):
     len_recv_bit = worker_client.recv(HEADER)
     if not len(len_recv_bit):
