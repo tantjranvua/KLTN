@@ -70,14 +70,21 @@ class buildmodel():
         self.loss_fn = keras.losses.BinaryCrossentropy()
         self.metric = keras.metrics.BinaryAccuracy()
         self.model.compile(optimizer=self.opt, loss= self.loss_fn)
+    
+    def compile_model(self,model):
+        model.compile(optimizer=self.opt, loss= self.loss_fn)
+        return model
+    
     @tf.function
-    def train_step(self,x, y):
+    def train_step(self, model, x, y):
         with tf.GradientTape() as tape:
-            logits = self.model(x, training=True)
+            logits = model(x, training=True)
             loss_value = self.loss_fn(y, logits)
-        grads = tape.gradient(loss_value, self.model.trainable_weights)
+        grads = tape.gradient(loss_value, model.trainable_weights)
         self.metric.update_state(y,logits)
         return grads        
     @tf.function
-    def update_grads(self, grads):
-        self.opt.apply_gradients(zip(grads, self.model.trainable_weights))
+    def update_grads(self, model, grads):
+        self.opt.apply_gradients(zip(grads, model.trainable_weights))
+        # print('in hearrrrrrrrrrrrrrrrrrrrrrrrrrrr----------------')
+        # return model

@@ -4,6 +4,8 @@ import tqdm
 import time
 import pickle
 import netifaces
+import tensorflow as tf
+import modelbuild
 from queue import Queue
 from threading import Event
 
@@ -21,6 +23,7 @@ config['epochs'] = 10
 config['batch_size'] = 32
 config['steps_per_epoch'] = 1
 
+model_lib = modelbuild.buildmodel()
 
 workers = []
 workers_lock = threading.Lock() #lock synchrony worker list
@@ -86,8 +89,20 @@ def send_config(worker_client:socket.socket):
     else:
         print(mess)
         
-def send_data(worker_client: socket.socket):
-        pass
+def send_data(worker_client: socket.socket, data_flow:tf.keras.preprocessing.image.DirectoryIterator):
+    data_dumps = pickle.dumps(data_flow.next())
+    try:
+        # progress = tqdm.tqdm(range(len(data_dumps)), f"Sending data", disable = True, unit="B", unit_scale=True, unit_divisor=1024)
+        worker_client.send(create_mess_header(data_dumps))
+        worker_client.sendall(data_dumps)
+    except:
+        raise Exception("[No sigal], Fail to send data")
+    mess = worker_client.recv(HEADER).decode(FORMAT).strip()
+    if mess==RECEIVE_SUCCESS:
+        print('[Success], send data')
+    else:
+        print(mess)    
+        
 def get_gradient(worker_client:socket.socket):
     len_recv_bit = worker_client.recv(HEADER)
     if not len(len_recv_bit):
@@ -104,8 +119,9 @@ def get_gradient(worker_client:socket.socket):
     worker_client.send(mess_to_header(RECEIVE_SUCCESS))
     return gradient
 
-def optimize(gra_queue: Queue,tmp):
+def optimize(gra_queue: Queue,model):
     global workers
+    global model_lib
     # while True:
     #     while gra_queue.empty() != True:
     #         print('[OPTIMIZING]', gra_queue.qsize())
@@ -139,8 +155,9 @@ def optimize(gra_queue: Queue,tmp):
                 
             # get gradient tu gradient queue
             gradient = gra_queue.get()
-            print(gradient)
-            model = gradient*-1
+            print(type(model))
+            print(model)
+            model_lib.update_grads(model = model,grads= gradient)
             model_dumps = pickle.dumps(model)
             
             #send model to all worker in worker list
@@ -158,7 +175,10 @@ def optimize(gra_queue: Queue,tmp):
             workers_lock.release()
     
     
-def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue):
+def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue, data_flow:tf.keras.preprocessing.image.DirectoryIterator):
+    
+    data_flow.batch_size = config['batch_size'] * 10
+    
     global workers
     #connect to worker server
     master_client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -179,6 +199,7 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
         if request == SEND_DATA:
             try:
                 print(request)
+                send_data(worker_client,data_flow)
             except Exception as e:
                 print(e)
                 return

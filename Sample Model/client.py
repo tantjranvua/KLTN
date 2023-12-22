@@ -4,6 +4,7 @@ import os
 import tqdm
 import tensorflow as tf
 import numpy as np
+import modelbuild
 from util import *
 
 HEADER = 128
@@ -20,6 +21,7 @@ MASTER_ADDR = ('172.16.5.246',5555)
 # MASTER_ADDR = ('172.16.5.128',5555)
 WORKER_ADDR = (IP_ADDR,5678)
 model_cache = 0
+model_lib = modelbuild.buildmodel()
 
 worker_server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 worker_server.bind(WORKER_ADDR)
@@ -50,12 +52,12 @@ def get_model_init(worker_client:socket.socket):
             progress.update(len(bytes_read))
     progress = None
 
-    # model=tf.keras.models.load_model(file_name)
-    # os.remove(file_name)
+    model=tf.keras.models.load_model(file_name)
+    os.remove(file_name) 
     worker_client.send(mess_to_header(RECEIVE_SUCCESS))
 
-    # return model
-    return 0
+    return model
+    # return 0
 
 def get_model(worker_client:socket.socket):
     len_recv_bit = worker_client.recv(HEADER)
@@ -70,6 +72,7 @@ def get_model(worker_client:socket.socket):
         bytes_read.extend(packet)
         readed += len(packet)
     model = pickle.loads(bytes_read)
+    print(type(model))
     worker_client.send(mess_to_header(RECEIVE_SUCCESS))
     return model
 
@@ -90,11 +93,21 @@ def get_config(worker_client:socket.socket):
     worker_client.send(mess_to_header(RECEIVE_SUCCESS))
     return config
 
-def training():
-    print('Client Traing', model_cache)
-    # time.sleep(1) 
+def training(worker_client, model, data):
+    global model_lib
+    print('Client Traing')
+    (x_train,y_train) = data
+    for i in range(10):
+        x_batch_train = x_train[i*config['batch_size']:(i+1)*config['batch_size']]
+        y_batch_train = y_train[i*config['batch_size']:(i+1)*config['batch_size']]
+        grad = model_lib.train_step(model = model,x = x_batch_train,y = y_batch_train)
+        print(model_lib.metric.result())
+        send_gradient(worker_client=worker_client, gradient=grad)
 
 def get_data(worker_client:socket.socket):
+    print('[SEND] Client get data')
+    worker_client.send(mess_to_header(SEND_DATA))
+    
     len_recv_bit = worker_client.recv(HEADER)
     if not len(len_recv_bit):
         raise Exception('[Fail], data not receive')
@@ -155,6 +168,7 @@ server_thread.start()
 
 model = get_model_init(worker_client)
 config = get_config(worker_client)
+data = get_data(worker_client)
 run = 0
 while True:
     # Cập nhật model    <-                            getmodel
@@ -164,7 +178,8 @@ while True:
     
     
     # model = model_cache
-    training()
+    training(worker_client, model, data)
+    data = get_data(worker_client)
     # get_data() -> update_model()
-    send_gradient(worker_client=worker_client, gradient=run)
+    # send gradient
     run+=1
