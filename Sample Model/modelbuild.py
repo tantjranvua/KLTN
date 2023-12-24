@@ -60,15 +60,6 @@ class buildmodel():
             outputs = keras.layers.Dense(num_outputs,activation = 'softmax',name = 'outputs_softmax')(x)
         model = keras.Model(inputs = inputs, outputs = outputs, name = 'resnet18')
         return model
-    
-    def compiled_model(self,model_name = 'resnet18',num_outputs=1):
-        if model_name == 'resnet18':
-            model = self.resnet18(num_outputs = num_outputs)
-        if model_name == 'vgg16':
-            model = self.vgg16(num_outputs=num_outputs)
-        model.compile(optimizer=keras.optimizers.Adam(),loss=keras.losses.BinaryCrossentropy())
-        return model
-    
     def __init__(self,model_name = 'resnet18',num_outputs=1):
         if model_name == 'resnet18':
             self.model = self.resnet18(num_outputs = num_outputs)
@@ -77,16 +68,22 @@ class buildmodel():
         self.opt = keras.optimizers.Adam()
         self.loss_fn = keras.losses.BinaryCrossentropy()
         self.metric = keras.metrics.BinaryAccuracy()
-        
+        self.model.compile(optimizer=self.opt, loss= self.loss_fn)
+    
+    def compile_model(self,model):
+        model.compile(optimizer=self.opt, loss= self.loss_fn)
+        return model
+    
     @tf.function
-    def train_step(self,x, y):
+    def train_step(self, model, x, y):
         with tf.GradientTape() as tape:
-            logits = self.model(x, training=True)
+            logits = model(x, training=True)
             loss_value = self.loss_fn(y, logits)
-        grads = tape.gradient(loss_value, self.model.trainable_weights)
+        grads = tape.gradient(loss_value, model.trainable_weights)
         self.metric.update_state(y,logits)
-        return grads  
-          
+        return grads        
     @tf.function
-    def update_grads(self, grads):
-        self.opt.apply_gradients(zip(grads, self.model.trainable_weights))
+    def update_grads(self, model, grads):
+        self.opt.apply_gradients(zip(grads, model.trainable_weights))
+        # print('in hearrrrrrrrrrrrrrrrrrrrrrrrrrrr----------------')
+        # return model
