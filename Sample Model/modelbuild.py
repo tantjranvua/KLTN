@@ -60,7 +60,6 @@ class buildmodel():
             outputs = keras.layers.Dense(num_outputs,activation = 'softmax',name = 'outputs_softmax')(x)
         model = keras.Model(inputs = inputs, outputs = outputs, name = 'resnet18')
         return model
-
     def __init__(self,model_name = 'resnet18',num_outputs=1):
         if model_name == 'resnet18':
             self.model = self.resnet18(num_outputs = num_outputs)
