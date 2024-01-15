@@ -72,7 +72,6 @@ def get_model(worker_client:socket.socket):
         bytes_read.extend(packet)
         readed += len(packet)
     model = pickle.loads(bytes_read)
-    print(type(model))
     worker_client.send(mess_to_header(RECEIVE_SUCCESS))
     return model
 
@@ -93,16 +92,25 @@ def get_config(worker_client:socket.socket):
     worker_client.send(mess_to_header(RECEIVE_SUCCESS))
     return config
 
-def training(worker_client, model, data):
+def training(worker_client, data):
     global model_lib
+    global model_cache
     print('Client Traing')
     (x_train,y_train) = data
     for i in range(10):
+        if model_cache:
+            print('Update model')
+            model_lib.model.set_weights(model_cache) 
+            model_cache = 0
         x_batch_train = x_train[i*config['batch_size']:(i+1)*config['batch_size']]
         y_batch_train = y_train[i*config['batch_size']:(i+1)*config['batch_size']]
-        grad = model_lib.train_step(model = model,x = x_batch_train,y = y_batch_train)
-        print(model_lib.metric.result())
+        y_batch_train = y_batch_train.reshape(-1,1)
+        print('Training with', x_batch_train.shape, y_batch_train.shape)
+        loss_value, grad = model_lib.train_step(x = x_batch_train,y = y_batch_train)
+        print( "Training loss : %.4f"% (float(loss_value)))
+        # model_lib.optimize_model(grad)
         send_gradient(worker_client=worker_client, gradient=grad)
+    print("Train acc", model_lib.metrics.result())
 
 def get_data(worker_client:socket.socket):
     print('[SEND] Client get data')
@@ -151,7 +159,6 @@ def worker_handle_client(master_client:socket.socket, addr:str):
         if request == SEND_MODEL:
             try:
                 model_cache = get_model(master_client)
-                print('[GET]', model_cache)
             except Exception as e:
                 print(e)
                 return
@@ -166,10 +173,10 @@ def server(worker_server:socket.socket,model_cache):
 server_thread = threading.Thread(target=server,args=(worker_server,model_cache))
 server_thread.start()
 
-model = get_model_init(worker_client)
+model_lib.model = get_model_init(worker_client)
 config = get_config(worker_client)
 data = get_data(worker_client)
-run = 0
+# model_lib.model = model_cache
 while True:
     # Cập nhật model    <-                            getmodel
     # Kiểm tra đã có data chưa  
@@ -177,9 +184,7 @@ while True:
     #     ->                        send gradient
     
     
-    # model = model_cache
-    training(worker_client, model, data)
+    training(worker_client, data)
     data = get_data(worker_client)
     # get_data() -> update_model()
     # send gradient
-    run+=1

@@ -12,17 +12,17 @@ master_server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 master_server.bind(MASTER_ADDR)
 master_server.listen()
 
-model = modelbuild.buildmodel().model
-model.save(MODELFILE)
+model = modelbuild.buildmodel()
+model.model.save(MODELFILE)
 save_file_event = Event()
 save_file_event.set()
 
-target_size = tuple(model.input_shape[1:3])
+target_size = tuple(model.model.input_shape[1:3])
 img_gen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1/255)
-data_flow = img_gen.flow_from_directory('./data',target_size=(224, 224),class_mode="binary")
-
+data_flow = img_gen.flow_from_directory('./data',target_size=target_size,class_mode="binary")
+test_data = data_flow.next()
 print('[SERVER] is running')
-optimize_thread = threading.Thread(target=optimize, args=(gra_queue,model))
+optimize_thread = threading.Thread(target=optimize, args=(gra_queue,model,test_data))
 optimize_thread.start()
 while True:
 

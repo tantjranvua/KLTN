@@ -23,10 +23,7 @@ config['epochs'] = 10
 config['batch_size'] = 32
 config['steps_per_epoch'] = 1
 
-model_lib = modelbuild.buildmodel()
-
 workers = []
-workers_lock = threading.Lock() #lock synchrony worker list
 gra_condition = threading.Condition() #condition call optimize after get gradient
 def get_ip_address():
     iface = netifaces.gateways()['default'][netifaces.AF_INET][1]
@@ -119,9 +116,11 @@ def get_gradient(worker_client:socket.socket):
     worker_client.send(mess_to_header(RECEIVE_SUCCESS))
     return gradient
 
-def optimize(gra_queue: Queue,model):
+def optimize(gra_queue: Queue,model,test_data):
     global workers
-    global model_lib
+    model.compile()
+    x,y=test_data
+    model.model.evaluate(x,y)
     # while True:
     #     while gra_queue.empty() != True:
     #         print('[OPTIMIZING]', gra_queue.qsize())
@@ -146,7 +145,6 @@ def optimize(gra_queue: Queue,model):
     #         else:
     #             print(mess)
     #         workers_lock.release()
-     
     while True:
         with gra_condition:
             print('[OPTIMIZING]', gra_queue.qsize())
@@ -155,13 +153,12 @@ def optimize(gra_queue: Queue,model):
                 
             # get gradient tu gradient queue
             gradient = gra_queue.get()
-            print(type(model))
-            print(model)
-            model_lib.update_grads(model = model,grads= gradient)
-            model_dumps = pickle.dumps(model)
+            
+            model.optimize_model(grads= gradient)
+            model.model.evaluate(x,y)
+            model_dumps = pickle.dumps(model.model.get_weights())
             
             #send model to all worker in worker list
-            workers_lock.acquire()
             for worker in workers:
                 print('Server send model after sending', model)
                 worker.send(mess_to_header(SEND_MODEL))
@@ -172,24 +169,23 @@ def optimize(gra_queue: Queue,model):
                 print('[Success], send model')
             else:
                 print(mess)
-            workers_lock.release()
     
     
 def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue, data_flow:tf.keras.preprocessing.image.DirectoryIterator):
-    
     data_flow.batch_size = config['batch_size'] * 10
+    data_size = len(data_flow)
+    run = 0
+    epoch =1
     
     global workers
     #connect to worker server
     master_client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
     master_client.connect((addr[0],5678))
-    workers_lock.acquire()
     workers.append(master_client)
-    workers_lock.release()
     # get request
     print(f'[ACTIVE CONNECTIONS]')
     while True:
-        print('-----------')
+        print('-----------Epoch:',epoch)
         try:
             request = receive_request_header(worker_client)
         except Exception as e:
@@ -200,6 +196,12 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
             try:
                 print(request)
                 send_data(worker_client,data_flow)
+                run +=1
+                print('Step:', run)
+                if run==data_size:
+                    print('----Done epoch')
+                    epoch +=1
+                    run = 0
             except Exception as e:
                 print(e)
                 return
