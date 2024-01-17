@@ -18,6 +18,9 @@ SEND_DATA = "<SENDDATA>"
 SEND_MODEL = "<SENDMODEL>"
 SEND_GRADIENT = "<SENDGRADIENT>"
 
+run = 0
+epoch = 1
+
 config = {}
 config['epochs'] = 10
 config['batch_size'] = 32
@@ -174,8 +177,8 @@ def optimize(gra_queue: Queue,model,test_data):
 def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue, data_flow:tf.keras.preprocessing.image.DirectoryIterator):
     data_flow.batch_size = config['batch_size'] * 10
     data_size = len(data_flow)
-    run = 0
-    epoch =1
+    global run
+    global epoch
     
     global workers
     #connect to worker server
@@ -185,7 +188,7 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
     # get request
     print(f'[ACTIVE CONNECTIONS]')
     while True:
-        print('-----------Epoch:',epoch)
+        print('-----------Epoch:',epoch,'-Step:',run)
         try:
             request = receive_request_header(worker_client)
         except Exception as e:
@@ -197,7 +200,6 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
                 print(request)
                 send_data(worker_client,data_flow)
                 run +=1
-                print('Step:', run)
                 if run==data_size:
                     print('----Done epoch')
                     epoch +=1
