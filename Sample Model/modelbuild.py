@@ -44,6 +44,7 @@ class buildmodel():
         self.optimizer = optimizer
         self.loss = loss
         self.metrics = metrics
+        self.model.compile(optimizer = self.optimizer, loss = self.loss, metrics = self.metrics)
     def compile(self, optimizer=keras.optimizers.Adam(), loss=keras.losses.BinaryCrossentropy() , metrics=keras.metrics.BinaryAccuracy()):
         self.optimizer = optimizer
         self.loss = loss

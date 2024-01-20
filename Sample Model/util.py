@@ -8,6 +8,7 @@ import tensorflow as tf
 import modelbuild
 from queue import Queue
 from threading import Event
+import sys
 
 HEADER = 128
 BUFFER_SIZE = 4096
@@ -121,9 +122,9 @@ def get_gradient(worker_client:socket.socket):
 
 def optimize(gra_queue: Queue,model,test_data):
     global workers
-    model.compile()
+    global run
+    global epoch
     x,y=test_data
-    model.model.evaluate(x,y)
     # while True:
     #     while gra_queue.empty() != True:
     #         print('[OPTIMIZING]', gra_queue.qsize())
@@ -156,14 +157,15 @@ def optimize(gra_queue: Queue,model,test_data):
                 
             # get gradient tu gradient queue
             gradient = gra_queue.get()
-            
             model.optimize_model(grads= gradient)
-            model.model.evaluate(x,y)
             model_dumps = pickle.dumps(model.model.get_weights())
+            
+            if(run== 77):
+                model.model.save(('model1'+str(epoch)+'.h5'))
             
             #send model to all worker in worker list
             for worker in workers:
-                print('Server send model after sending', model)
+                print('Server send model after sending', model)     
                 worker.send(mess_to_header(SEND_MODEL))
                 worker.send(create_mess_header(model_dumps))
                 worker.sendall(model_dumps)
@@ -179,7 +181,6 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
     data_size = len(data_flow)
     global run
     global epoch
-    
     global workers
     #connect to worker server
     master_client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -203,6 +204,8 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
                 if run==data_size:
                     print('----Done epoch')
                     epoch +=1
+                    if epoch ==16:
+                        sys.exit()
                     run = 0
             except Exception as e:
                 print(e)

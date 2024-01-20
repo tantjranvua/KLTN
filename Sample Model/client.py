@@ -99,13 +99,12 @@ def training(worker_client, data):
     (x_train,y_train) = data
     for i in range(10):
         if model_cache:
-            print('Update model')
+            # print('Update model')
             model_lib.model.set_weights(model_cache) 
             model_cache = 0
         x_batch_train = x_train[i*config['batch_size']:(i+1)*config['batch_size']]
         y_batch_train = y_train[i*config['batch_size']:(i+1)*config['batch_size']]
         y_batch_train = y_batch_train.reshape(-1,1)
-        print('Training with', x_batch_train.shape, y_batch_train.shape)
         loss_value, grad = model_lib.train_step(x = x_batch_train,y = y_batch_train)
         print( "Training loss : %.4f"% (float(loss_value)))
         # model_lib.optimize_model(grad)
