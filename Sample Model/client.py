@@ -107,7 +107,7 @@ def training(worker_client, data):
         y_batch_train = y_batch_train.reshape(-1,1)
         loss_value, grad = model_lib.train_step(x = x_batch_train,y = y_batch_train)
         print( "Training loss : %.4f"% (float(loss_value)))
-        # model_lib.optimize_model(grad)
+        model_lib.optimize_model(grad)
         send_gradient(worker_client=worker_client, gradient=grad)
     print("Train acc", model_lib.metrics.result())
 

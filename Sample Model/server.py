@@ -22,14 +22,14 @@ img_gen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1/255)
 data_flow = img_gen.flow_from_directory('./data',target_size=target_size,class_mode="binary")
 test_data = data_flow.next()
 print('[SERVER] is running')
-optimize_thread = threading.Thread(target=optimize, args=(gra_queue,model,test_data))
+optimize_thread = threading.Thread(target=optimize, args=(gra_queue,model,test_data,save_file_event))
 optimize_thread.start()
 while True:
 
     worker_client, addr = master_server.accept()
     try:
         if not save_file_event.is_set():
-            model.save(MODELFILE)
+            model.model.save(MODELFILE)
             save_file_event.set()
         file_name = MODELFILE
         file_size = os.path.getsize(file_name)

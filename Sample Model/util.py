@@ -120,7 +120,7 @@ def get_gradient(worker_client:socket.socket):
     worker_client.send(mess_to_header(RECEIVE_SUCCESS))
     return gradient
 
-def optimize(gra_queue: Queue,model,test_data):
+def optimize(gra_queue: Queue,model,test_data, save_file_event: Event):
     global workers
     global run
     global epoch
@@ -158,6 +158,7 @@ def optimize(gra_queue: Queue,model,test_data):
             # get gradient tu gradient queue
             gradient = gra_queue.get()
             model.optimize_model(grads= gradient)
+            save_file_event.clear
             model_dumps = pickle.dumps(model.model.get_weights())
             
             if(run== 77):
@@ -165,16 +166,17 @@ def optimize(gra_queue: Queue,model,test_data):
             
             #send model to all worker in worker list
             for worker in workers:
-                print('Server send model after sending', model)     
-                worker.send(mess_to_header(SEND_MODEL))
-                worker.send(create_mess_header(model_dumps))
-                worker.sendall(model_dumps)
-            mess = worker.recv(HEADER).decode(FORMAT).strip()
-            if mess==RECEIVE_SUCCESS:
-                print('[Success], send model')
-            else:
-                print(mess)
-    
+                try:
+                    worker.send(mess_to_header(SEND_MODEL))
+                    worker.send(create_mess_header(model_dumps))
+                    worker.sendall(model_dumps)
+                    mess = worker.recv(HEADER).decode(FORMAT).strip()
+                    if mess==RECEIVE_SUCCESS:
+                        print('[Success], send model')
+                    else:
+                        print(mess)
+                except:
+                    workers.remove(worker)
     
 def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue, data_flow:tf.keras.preprocessing.image.DirectoryIterator):
     data_flow.batch_size = config['batch_size'] * 10
