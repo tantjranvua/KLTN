@@ -184,6 +184,7 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
     global run
     global epoch
     global workers
+    st = time.time()
     #connect to worker server
     master_client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
     master_client.connect((addr[0],5678))
@@ -206,8 +207,6 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
                 if run==data_size:
                     print('----Done epoch')
                     epoch +=1
-                    if epoch ==16:
-                        sys.exit()
                     run = 0
             except Exception as e:
                 print(e)
@@ -215,6 +214,9 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
             
         if request == SEND_GRADIENT:
             try:
+                if epoch ==2:
+                    print(time.time() - st)
+                    sys.exit()
                 print('[GET]', request)
                 gradient = get_gradient(worker_client)
                 with gra_condition:
