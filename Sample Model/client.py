@@ -97,6 +97,7 @@ def training(worker_client, data):
     global model_cache
     print('Client Traing')
     (x_train,y_train) = data
+    sum_grads=0
     for i in range(10):
         if model_cache:
             # print('Update model')
@@ -108,7 +109,12 @@ def training(worker_client, data):
         loss_value, grad = model_lib.train_step(x = x_batch_train,y = y_batch_train)
         print( "Training loss : %.4f"% (float(loss_value)))
         model_lib.optimize_model(grad)
-        send_gradient(worker_client=worker_client, gradient=grad)
+        if i==0:
+            sum_grads = grad
+        else:
+            for i in range(len(grad)):
+                tf.add(sum_grads[i],grad[i])
+    send_gradient(worker_client=worker_client, gradient=sum_grads)
     print("Train acc", model_lib.metrics.result())
 
 def get_data(worker_client:socket.socket):
