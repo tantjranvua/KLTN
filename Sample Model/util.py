@@ -157,6 +157,8 @@ def optimize(gra_queue: Queue,model,test_data, save_file_event: Event):
                 
             # get gradient tu gradient queue
             gradient = gra_queue.get()
+            while(gra_queue.empty() != True):
+                gradient+=gra_queue.get()
             model.optimize_model(grads= gradient)
             save_file_event.clear
             model_dumps = pickle.dumps(model.model.get_weights())
@@ -206,6 +208,8 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
                 run +=1
                 if run==data_size:
                     print('----Done epoch')
+                    print(time.time() - st)
+                    st= time.time()
                     epoch +=1
                     run = 0
             except Exception as e:
@@ -214,8 +218,7 @@ def master_handle_client(worker_client:socket.socket, addr:str, gra_queue: Queue
             
         if request == SEND_GRADIENT:
             try:
-                if epoch ==2:
-                    print(time.time() - st)
+                if epoch ==7:
                     sys.exit()
                 print('[GET]', request)
                 gradient = get_gradient(worker_client)
